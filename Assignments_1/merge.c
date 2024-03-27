@@ -7,9 +7,9 @@
 int main(int argc, char* argv[]){
     //예외처리
     if(argc != 4){
-		fprintf(stderr, "Input Error : Write <File name 1> <File name 2> <File name 3>.\n");
-		exit(1);
-	}
+        fprintf(stderr, "Input Error : Write <File name 1> <File name 2> <File name 3>.\n");
+        exit(1);
+    }
 
     int fd1 = open(argv[1], O_RDONLY);
     int fd2 = open(argv[2], O_RDONLY);
@@ -19,17 +19,20 @@ int main(int argc, char* argv[]){
 
     if(fd1 < 0 || fd2 < 0 || fd3< 0){
         fprintf(stderr, "Write <File name 1> <File name 2> <File name 3>.\n");
-		exit(1);
+        exit(1);
     }
 
     char buffer;
 
     //읽을 수 있는 동안 write()까지 할 수 있음.
-    while( read(fd1, &buffer, 1) != 0){
+
+    //fd1을 fd3에 복사
+    while( read(fd1, &buffer, 1) != 0 ){
         write(fd3, &buffer, 1);
     }
     close(fd1);
 
+    //fd2를 fd3에 복사
     while( read(fd2, &buffer, 1) !=0){
         write(fd3, &buffer, 1);
     }
