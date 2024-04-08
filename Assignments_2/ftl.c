@@ -14,51 +14,9 @@ FILE *flashfp;	// fdevicedriver.c에서 사용
 // 참고로, 읽기와 쓰기는 페이지 단위이며 소거는 블록 단위이다.
 //
 
-int dd_read(int ppn, char *pagebuf)
-{
-    int ret;
-
-    fseek(flashfp, PAGE_SIZE*ppn, SEEK_SET);
-    ret = fread((void *)pagebuf, PAGE_SIZE, 1, flashfp);
-    if(ret == 1) {
-        return 1;
-    }
-    else {
-        return -1;
-    }
-}
-int dd_write(int ppn, char *pagebuf)
-{
-    int ret;
-
-    fseek(flashfp, PAGE_SIZE*ppn, SEEK_SET);
-    ret = fwrite((void *)pagebuf, PAGE_SIZE, 1, flashfp);
-    if(ret == 1) {
-        return 1;
-    }
-    else {
-        return -1;
-    }
-}
-
-int dd_erase(int pbn)
-{
-    char blockbuf[BLOCK_SIZE];
-    int ret;
-
-    memset((void*)blockbuf, (char)0xFF, BLOCK_SIZE);
-
-    fseek(flashfp, BLOCK_SIZE*pbn, SEEK_SET);
-
-    ret = fwrite((void *)blockbuf, BLOCK_SIZE, 1, flashfp);
-
-    if(ret == 1) {
-        return 1;
-    }
-    else {
-        return -1;
-    }
-}
+extern int dd_read(int ppn, char *pagebuf);
+extern int dd_write(int ppn, char *pagebuf);
+extern int dd_erase(int pbn);
 
 int pbn;
 
