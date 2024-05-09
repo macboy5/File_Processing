@@ -56,17 +56,28 @@ void ftl_read(int lsn, char *sectorbuf)
         if (dd_read(pbn * PAGES_PER_BLOCK + offset, pagebuf) == 1) {
         //printf("READ() PAGEBUF : %s\n", pagebuf);
             memcpy(sectorbuf, pagebuf, SECTOR_SIZE);
-        printf("READ() ppn %d SECTOR DATA : %s\n", pbn * PAGES_PER_BLOCK + offset , sectorbuf);
+//        printf("READ() ppn %d SECTOR DATA : \n", pbn * PAGES_PER_BLOCK + offset );
 
-            char sparebuf[SPARE_SIZE];
-            memcpy(sparebuf, pagebuf + SECTOR_SIZE, SPARE_SIZE);
-            char first_four_bytes[SPARE_SIZE / 4];
-            memcpy(first_four_bytes, sparebuf, SPARE_SIZE / 4);
-        printf("READ() ppn %d SPARE DATA : %s\n", pbn * PAGES_PER_BLOCK + offset , first_four_bytes);
+//        for(int i=0; i<SECTOR_SIZE; i++){
+//            printf("%02x ", sectorbuf[i]);
+//        }
+//        printf("\n");
 
+//            char sparebuf[SPARE_SIZE];
+//            memcpy(sparebuf, pagebuf + SECTOR_SIZE, SPARE_SIZE);
+//            char first_four_bytes[SPARE_SIZE / 4];
+//            memcpy(first_four_bytes, sparebuf, SPARE_SIZE / 4);
+//        printf("READ() ppn %d SPARE DATA : \n", pbn * PAGES_PER_BLOCK + offset);
 
-        } else {
+//            for(int i=0; i<SPARE_SIZE; i++){
+//                printf("%02x ", sparebuf[i]);
+//            }
+//            printf("\n");
+
+        }
+        else {
             fprintf(stderr, "flash memory read error\n");
+            exit(1);
         }
     }
     else{
@@ -85,7 +96,7 @@ void ftl_read(int lsn, char *sectorbuf)
 void ftl_write(int lsn, char *sectorbuf)
 {
     if(lsn<0 || lsn >59){
-        fprintf(stderr, "Error : Typed lsn %d is out of range\n", lsn);
+        fprintf(stderr, "Error : Input lsn %d is out of range\n", lsn);
         exit(1);
     }
 
@@ -94,10 +105,11 @@ void ftl_write(int lsn, char *sectorbuf)
     int offset = lsn % PAGES_PER_BLOCK;
 
     char pagebuf[PAGE_SIZE];
+    memset(pagebuf, 0xff, PAGE_SIZE);
 
     //pagebuf에 data 적는 과정..
     //pagebuf의 sector area에  sectorbuf 내용 쓰기
-    memcpy(pagebuf, sectorbuf, SECTOR_SIZE);
+    memcpy(pagebuf, sectorbuf, strlen(sectorbuf));
 //    printf("WRITE() SECTOR DATA : %s\n", pagebuf);
 
     char lsnbuf[SPARE_SIZE/4];
@@ -105,9 +117,8 @@ void ftl_write(int lsn, char *sectorbuf)
 //    printf("WRITE() SPARE DATA : %s\n", lsnbuf);
 
     //pagebuf의 spare area에  lsn 쓰기
-    memcpy(pagebuf+SECTOR_SIZE, lsnbuf, SPARE_SIZE/4);
+    memcpy(pagebuf+SECTOR_SIZE, lsnbuf, strlen(lsnbuf));
 
-    //printf("PAGE DATA : ")
 
     //lsn에 최초로 데이터를 쓰는 경우
     if( pbn == -1 ){
@@ -128,10 +139,8 @@ void ftl_write(int lsn, char *sectorbuf)
         char all_ff[SPARE_SIZE/4];
         memset(all_ff, 0xff, SPARE_SIZE/4);
 
-
         dd_read(pbn*PAGES_PER_BLOCK+offset, pagebuf_tmp);
 
-//        printf("%d\n", *spare_area);
 
         char first_four_bytes[SPARE_SIZE/4];
         memcpy(first_four_bytes, pagebuf_tmp+SECTOR_SIZE, SPARE_SIZE/4);
@@ -185,7 +194,7 @@ void ftl_print()
     printf("free block=%d\n",free_block);
 
     //block_indx test
-    printf("block_indx=%d\n", block_indx);
+   // printf("block_indx=%d\n", block_indx);
 
 	return;
 }
