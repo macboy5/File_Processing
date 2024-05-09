@@ -1,0 +1,3 @@
+ftl.o: ftl.c blockmapping.h
+flashdevicedriver.o: flashdevicedriver.c blockmapping.h
+main.o: main.c blockmapping.h
