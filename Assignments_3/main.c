@@ -56,22 +56,26 @@ int main(int argc, char *argv[])
 	//
 
     ftl_write(10, "FIRST WRITE()");
-    ftl_read(10, sectorbuf);
+ //   ftl_read(10, sectorbuf);
     ftl_write(10, "SECOND TRY");
 //    ftl_read(10, sectorbuf);
 //    ftl_read(10, sectorbuf);
-//    ftl_write(2, "Test 1 ");
+//    ftl_read(10, sectorbuf);
+ //   ftl_write(2, "Test 1 ");
+ //   ftl_write(2, "Test 1 ");
+//    ftl_read(2, sectorbuf);
+//    ftl_read(30, sectorbuf);
 //    ftl_read(10, sectorbuf);
 //    ftl_write(3, "Dfdfa");
 //    ftl_write(0, "Dfafas");
 //    ftl_write(3, "Dfdfa");
-//    ftl_write(20, "Test 54541");
+    ftl_write(20, "Test 54541");
 //
 //    ftl_read(20, sectorbuf);
 //    ftl_write(13, "Test 1");
 //    ftl_write(14, "Test 1");
 //    ftl_write(16, "Test 1");
-//    ftl_write(20, "CALL ME BABYYYYY");
+   ftl_write(20, "CALL ME BABYYYYY");
 //    ftl_read(20, sectorbuf);
 //    ftl_read(20, sectorbuf);
 //    ftl_write(20, "TEST 3");
@@ -103,8 +107,10 @@ int main(int argc, char *argv[])
 //
 //    ftl_write(0, "TEST 1");
 //    ftl_write(0, "ABCDEFGHIJK");
-
-
+//
+//    ftl_write(44, "dfafasfas");
+//    ftl_write(45, "dfafsf");
+//    ftl_write(45, "dfafsf");
  //   ftl_read(5, sectorbuf);
 
    ftl_print();

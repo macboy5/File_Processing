@@ -52,19 +52,26 @@ void ftl_read(int lsn, char *sectorbuf)
     int offset = lsn % PAGES_PER_BLOCK;
 
     char pagebuf[PAGE_SIZE];
-    if( dd_read(pbn * PAGES_PER_BLOCK + offset, pagebuf) == 1 ){
-//        printf("%s\n", pagebuf);
-        memcpy(sectorbuf, pagebuf, SECTOR_SIZE);
- //       printf("READ() SECTOR DATA : %s\n", sectorbuf);
+    if(pbn != -1) {
+        if (dd_read(pbn * PAGES_PER_BLOCK + offset, pagebuf) == 1) {
+        //printf("READ() PAGEBUF : %s\n", pagebuf);
+            memcpy(sectorbuf, pagebuf, SECTOR_SIZE);
+        printf("READ() ppn %d SECTOR DATA : %s\n", pbn * PAGES_PER_BLOCK + offset , sectorbuf);
 
-        char sparebuf[SPARE_SIZE];
-        memcpy(sparebuf, pagebuf+SECTOR_SIZE, SPARE_SIZE);
-        char first_four_bytes[SPARE_SIZE/4];
-        memcpy(first_four_bytes, sparebuf, SPARE_SIZE/4);
- //     printf("READ() SPARE DATA : %s\n", first_four_bytes);
+            char sparebuf[SPARE_SIZE];
+            memcpy(sparebuf, pagebuf + SECTOR_SIZE, SPARE_SIZE);
+            char first_four_bytes[SPARE_SIZE / 4];
+            memcpy(first_four_bytes, sparebuf, SPARE_SIZE / 4);
+        printf("READ() ppn %d SPARE DATA : %s\n", pbn * PAGES_PER_BLOCK + offset , first_four_bytes);
+
+
+        } else {
+            fprintf(stderr, "flash memory read error\n");
+        }
     }
     else{
-        fprintf(stderr, "flash memory read error\n");
+        fprintf(stderr, "Error : matching pbn is -1\n");
+        exit(1);
     }
 
 	return;
@@ -77,6 +84,11 @@ void ftl_read(int lsn, char *sectorbuf)
 //
 void ftl_write(int lsn, char *sectorbuf)
 {
+    if(lsn<0 || lsn >59){
+        fprintf(stderr, "Error : Typed lsn %d is out of range\n", lsn);
+        exit(1);
+    }
+
     int lbn = lsn / PAGES_PER_BLOCK;
     int pbn = address_mapping_table[lbn];
     int offset = lsn % PAGES_PER_BLOCK;
@@ -139,7 +151,7 @@ void ftl_write(int lsn, char *sectorbuf)
                     char lsn_area_tmp[SPARE_SIZE/4];
                     dd_read(pbn * PAGES_PER_BLOCK + i, pagebuf_tmp);
                     memcpy(lsn_area_tmp, pagebuf_tmp+SECTOR_SIZE, SPARE_SIZE/4);
-                    if(memcmp(lsn_area_tmp, all_ff , SPARE_SIZE) != 0 ) {
+                    if(memcmp(lsn_area_tmp, all_ff , SPARE_SIZE/4) != 0 ) {
                         //printf("%d\n", *spare_area);
                         dd_write(free_block * PAGES_PER_BLOCK + i, pagebuf_tmp);
                     }
