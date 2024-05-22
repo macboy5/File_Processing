@@ -60,9 +60,9 @@ int readFileHeader(FILE *fp, char *headerbuf);
 
 int writeFileHeader(FILE *fp, const char *headerbuf);
 
-void make_record(FILE *fp, const char *file_name);
+void make_record_file(FILE *fp, const char *file_name);
 
-int checkDuplicateID(FILE *fp, const char *id);
+int ID_duplication_test(FILE *fp, const char *id);
 
 
 int main(int argc, char *argv[])
@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
     fp = fopen(argv[2], "r+b");
     if(fp == NULL){
         fclose(fp);
-        make_record(fp, argv[2]);
+        make_record_file(fp, argv[2]);
         fp = fopen(argv[2], "r+b");
         if(fp == NULL){
             perror("Error opening file");
@@ -95,9 +95,67 @@ int main(int argc, char *argv[])
             char field[strlen(argv[i]) + 1];
             char value[strlen(argv[i]) + 1];
 
+            // field와 value를 초기화
+            memset(field, 0, sizeof(field));
+            memset(value, 0, sizeof(value));
+
             // argv[i] 값을 복사하여 field와 value로 분리
-            sscanf(argv[i], "%[^=]=%[^\0]", field, value);
+            int scanned = sscanf(argv[i], "%[^=]=%[^\0]", field, value);
 //            printf("Field: %s, Value: %s\n", field, value);
+
+            // value가 빈 문자열인지 확인하여 처리
+            if (scanned != 2 || strlen(value) == 0) {
+                fprintf(stderr, "Error: Invalid format or missing value for argument : %s\n", argv[i]);
+                exit(1);
+            }
+
+            //value의 길이가 범위를 벗어났을 때 처리
+            switch (i) {
+                case 3:
+                    if(strlen(value) > 8 ) {
+                        fprintf(stderr, "ID value is out of range.\n");
+                        exit(1);
+                    }
+                    break;
+                case 4 :
+                    if( strlen(value)>13) {
+                        fprintf(stderr, "NAME value is out of range.\n");
+                        exit(1);
+                    }
+                    break;
+                case 5 :
+                    if(strlen(value)>16) {
+                        fprintf(stderr, "DEPT value is out of range.\n");
+                        exit(1);
+                    }
+                    break;
+                case 6 :
+                    if(strlen(value) != 1) {
+                        fprintf(stderr, "YEAR value is out of range.\n");
+                        exit(1);
+                    }
+                    break;
+                case 7 :
+                    if(strlen(value)>20) {
+                        fprintf(stderr, "ADDR value is out of range.\n");
+                        exit(1);
+                    }
+                    break;
+                case 8 :
+                    if(strlen(value)>15) {
+                        fprintf(stderr, "PHONE value is out of range.\n");
+                        exit(1);
+                    }
+                    break;
+                case 9 :
+                    if( strlen(value)>20) {
+                        fprintf(stderr, "EMAIL value is out of range.\n");
+                        exit(1);
+                    }
+                    break;
+                default:
+                    break;
+            }
 
             FIELD field_id = getFieldID(field);
             if (field_id == -1) {
@@ -107,7 +165,7 @@ int main(int argc, char *argv[])
             switch (field_id) {
                 case ID:
                     strncpy(s.id, value, sizeof(s.id) - 1);
-                    s.id[sizeof(s.id) - 1] = '\0';  // Ensure null-terminated
+                    s.id[sizeof(s.id) - 1] = '\0';
                     break;
                 case NAME:
                     strncpy(s.name, value, sizeof(s.name) - 1);
@@ -143,7 +201,7 @@ int main(int argc, char *argv[])
         //insert() 실행 전,,, 레코드 파일에 해당 학번이 이미 존재 하는지 아닌지 검사.
         //존재한다면...에러 처리
 
-        if (checkDuplicateID(fp, s.id)) {
+        if (ID_duplication_test(fp, s.id)) {
                 fprintf(stderr, "Error: A record with ID %s already exists.\n", s.id);
                 exit(1);
         }
@@ -160,12 +218,41 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
+
+
         char field[strlen(argv[3]) + 1];
         char value[strlen(argv[3]) + 1];
 
-        // argv[i] 값을 복사하여 field와 value로 분리
-        sscanf(argv[3], "%[^=]=%[^\0]", field, value);
-//        printf("Field: %s, Value: %s\n", field, value);
+            // field와 value를 초기화
+            memset(field, 0, sizeof(field));
+            memset(value, 0, sizeof(value));
+
+
+//        // argv[i] 값을 복사하여 field와 value로 분리
+//        int scanned = sscanf(argv[3], "%[^=]=%[^\0]", field, value);
+////        printf("Field: %s, Value: %s\n", field, value);
+//
+//            if (scanned != 2 || strlen(value) == 0) {
+//                fprintf(stderr, "Error: Invalid format or missing value for argument : %s\n", argv[3]);
+//                exit(1);
+//            }
+
+
+            char *equal_sign = strchr(argv[3], '=');
+            if (equal_sign == NULL) {
+                fprintf(stderr, "Error: Invalid format. Missing '='\n");
+                return 1;
+            }
+
+            strncpy(field, argv[3], equal_sign - argv[3]);
+            strcpy(value, equal_sign + 1);
+
+            // Check if value is empty
+            if (strlen(value) == 0) {
+                fprintf(stderr, "Error: Value for field %s is missing.\n", field);
+                return 1;
+            }
+
 
         FIELD field_id = getFieldID(field);
         if (field_id == -1) {
@@ -191,11 +278,11 @@ int main(int argc, char *argv[])
 
 
 
-void make_record(FILE *fp, const char *file_name){
+void make_record_file(FILE *fp, const char *file_name){
     //처음 레코드 파일 생성 시. 헤더만 생성.
     fp = fopen(file_name, "w+b");
     if (fp == NULL) {
-        perror("make_record() : Error creating file");
+        perror("make_record_file() : Error creating file");
         exit(1);
     }
 
@@ -207,7 +294,7 @@ void make_record(FILE *fp, const char *file_name){
     memcpy(headerbuf, &total_pages, sizeof(total_pages));
 
     if (!writeFileHeader(fp, headerbuf)) {
-        fprintf(stderr, "make_record() : Failed to write file header\n");
+        fprintf(stderr, "make_record_file() : Failed to write file header\n");
         exit(1);
     }
 
@@ -446,7 +533,7 @@ void printSearchResult(const STUDENT *s, int n){
 }
 
 
-int checkDuplicateID(FILE *fp, const char *id) {
+int ID_duplication_test(FILE *fp, const char *id) {
     char headerbuf[FILE_HEADER_SIZE];
     if (!readFileHeader(fp, headerbuf)) {
         fprintf(stderr, "Failed to read file header\n");
@@ -478,7 +565,7 @@ int checkDuplicateID(FILE *fp, const char *id) {
             unpack(recordbuf, &s);
 
             if (strcmp(s.id, id) == 0) {
-                return 1; // Duplicate ID found
+                return 1; // 중복 ID, 이미 ID가 존재할 떄 1 return.
             }
         }
     }
