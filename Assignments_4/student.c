@@ -1,60 +1,60 @@
-#include <stdio.h>		// ÇÊ¿äÇÑ header file Ãß°¡ °¡´É
+#include <stdio.h>		// \C7Ê¿\E4\C7\D1 header file \C3ß°\A1 \B0\A1\B4\C9
 #include "student.h"
 #include <string.h>
 #include <stdlib.h>
 
 //
-// readPage() ÇÔ¼ö´Â ·¹ÄÚµå ÆÄÀÏ¿¡¼­ ÁÖ¾îÁø ÆäÀÌÁö¹øÈ£ pagenum(=0, 1, 2, ...)¿¡ ÇØ´çÇÏ´Â page¸¦
-// ÀÐ¾î¼­ pagebuf°¡ °¡¸®Å°´Â °÷¿¡ ÀúÀåÇÏ´Â ¿ªÇÒÀ» ¼öÇàÇÑ´Ù. Á¤»óÀûÀÎ ¼öÇàÀ» ÇÑ °æ¿ì
-// '1'À», ±×·¸Áö ¾ÊÀº °æ¿ì´Â '0'À» ¸®ÅÏÇÑ´Ù.
-// getRecFromPagebuf() ÇÔ¼ö´Â readPage()¸¦ ÅëÇØ ÀÐ¾î¿Â page¿¡¼­ ÁÖ¾îÁø ·¹ÄÚµå¹øÈ£ recordnum(=0, 1, 2, ...)¿¡
-// ÇØ´çÇÏ´Â ·¹ÄÚµå¸¦ recordbuf¿¡ Àü´ÞÇÏ´Â ÀÏÀ» ¼öÇàÇÑ´Ù.
-// ¸¸¾à page¿¡¼­ Àü´ÞÇÒ record°¡ Á¸ÀçÇÏ¸é '1'À», ±×·¸Áö ¾ÊÀ¸¸é '0'À» ¸®ÅÏÇÑ´Ù.
-// unpack() ÇÔ¼ö´Â recordbuf¿¡ ÀúÀåµÇ¾î ÀÖ´Â record¿¡¼­ °¢ field¸¦ ÃßÃâÇÏ¿© ÇÐ»ý °´Ã¼¿¡ ÀúÀåÇÏ´Â ÀÏÀ» ÇÑ´Ù.
+// readPage() \C7Ô¼\F6\B4\C2 \B7\B9\C4Úµ\E5 \C6\C4\C0Ï¿\A1\BC\AD \C1Ö¾\EE\C1\F8 \C6\E4\C0\CC\C1\F6\B9\F8È£ pagenum(=0, 1, 2, ...)\BF\A1 \C7Ø´\E7\C7Ï´\C2 page\B8\A6
+// \C0Ð¾î¼­ pagebuf\B0\A1 \B0\A1\B8\AEÅ°\B4\C2 \B0\F7\BF\A1 \C0\FA\C0\E5\C7Ï´\C2 \BF\AA\C7\D2\C0\BB \BC\F6\C7\E0\C7Ñ´\D9. \C1\A4\BB\F3\C0\FB\C0\CE \BC\F6\C7\E0\C0\BB \C7\D1 \B0\E6\BF\EC
+// '1'\C0\BB, \B1×·\B8\C1\F6 \BE\CA\C0\BA \B0\E6\BF\EC\B4\C2 '0'\C0\BB \B8\AE\C5\CF\C7Ñ´\D9.
+// getRecFromPagebuf() \C7Ô¼\F6\B4\C2 readPage()\B8\A6 \C5\EB\C7\D8 \C0Ð¾\EE\BF\C2 page\BF\A1\BC\AD \C1Ö¾\EE\C1\F8 \B7\B9\C4Úµ\E5\B9\F8È£ recordnum(=0, 1, 2, ...)\BF\A1
+// \C7Ø´\E7\C7Ï´\C2 \B7\B9\C4Úµå¸¦ recordbuf\BF\A1 \C0\FC\B4\DE\C7Ï´\C2 \C0\CF\C0\BB \BC\F6\C7\E0\C7Ñ´\D9.
+// \B8\B8\BE\E0 page\BF\A1\BC\AD \C0\FC\B4\DE\C7\D2 record\B0\A1 \C1\B8\C0\E7\C7Ï¸\E9 '1'\C0\BB, \B1×·\B8\C1\F6 \BE\CA\C0\B8\B8\E9 '0'\C0\BB \B8\AE\C5\CF\C7Ñ´\D9.
+// unpack() \C7Ô¼\F6\B4\C2 recordbuf\BF\A1 \C0\FA\C0\E5\B5Ç¾\EE \C0Ö´\C2 record\BF\A1\BC\AD \B0\A2 field\B8\A6 \C3\DF\C3\E2\C7Ï¿\A9 \C7Ð»\FD \B0\B4Ã¼\BF\A1 \C0\FA\C0\E5\C7Ï´\C2 \C0\CF\C0\BB \C7Ñ´\D9.
 //
 int readPage(FILE *fp, char *pagebuf, int pagenum);
 int getRecFromPagebuf(const char *pagebuf, char *recordbuf, int recordnum);
 void unpack(const char *recordbuf, STUDENT *s);
 
 //
-// ÁÖ¾îÁø ÇÐ»ý °´Ã¼¸¦ ·¹ÄÚµå ÆÄÀÏ¿¡ ÀúÀåÇÒ ¶§ »ç¿ëµÇ´Â ÇÔ¼öµéÀÌ¸ç, ±× ½Ã³ª¸®¿À´Â ´ÙÀ½°ú °°´Ù.
-// 1. ÇÐ»ý °´Ã¼¸¦ ½ÇÁ¦ ·¹ÄÚµå ÇüÅÂÀÇ recordbuf¿¡ ÀúÀåÇÑ´Ù(pack() ÇÔ¼ö ÀÌ¿ë).
-// 2. ·¹ÄÚµå ÆÄÀÏÀÇ ¸Ç¸¶Áö¸· page¸¦ pagebuf¿¡ ÀÐ¾î¿Â´Ù(readPage() ÀÌ¿ë). ¸¸¾à »õ·Î¿î ·¹ÄÚµå¸¦ ÀúÀåÇÒ °ø°£ÀÌ
-//    ºÎÁ·ÇÏ¸é pagebuf¿¡ empty page¸¦ ÇÏ³ª »ý¼ºÇÑ´Ù.
-// 3. recordbuf¿¡ ÀúÀåµÇ¾î ÀÖ´Â ·¹ÄÚµå¸¦ pagebufÀÇ page¿¡ ÀúÀåÇÑ´Ù(writeRecToPagebuf() ÇÔ¼ö ÀÌ¿ë).
-// 4. ¼öÁ¤µÈ page¸¦ ·¹ÄÚµå ÆÄÀÏ¿¡ ÀúÀåÇÑ´Ù(writePage() ÇÔ¼ö ÀÌ¿ë)
+// \C1Ö¾\EE\C1\F8 \C7Ð»\FD \B0\B4Ã¼\B8\A6 \B7\B9\C4Úµ\E5 \C6\C4\C0Ï¿\A1 \C0\FA\C0\E5\C7\D2 \B6\A7 \BB\E7\BF\EB\B5Ç´\C2 \C7Ô¼\F6\B5\E9\C0Ì¸\E7, \B1\D7 \BDÃ³\AA\B8\AE\BF\C0\B4\C2 \B4\D9\C0\BD\B0\FA \B0\B0\B4\D9.
+// 1. \C7Ð»\FD \B0\B4Ã¼\B8\A6 \BD\C7\C1\A6 \B7\B9\C4Úµ\E5 \C7\FC\C5\C2\C0\C7 recordbuf\BF\A1 \C0\FA\C0\E5\C7Ñ´\D9(pack() \C7Ô¼\F6 \C0Ì¿\EB).
+// 2. \B7\B9\C4Úµ\E5 \C6\C4\C0\CF\C0\C7 \B8Ç¸\B6\C1\F6\B8\B7 page\B8\A6 pagebuf\BF\A1 \C0Ð¾\EE\BFÂ´\D9(readPage() \C0Ì¿\EB). \B8\B8\BE\E0 \BB\F5\B7Î¿\EE \B7\B9\C4Úµå¸¦ \C0\FA\C0\E5\C7\D2 \B0\F8\B0\A3\C0\CC
+//    \BA\CE\C1\B7\C7Ï¸\E9 pagebuf\BF\A1 empty page\B8\A6 \C7Ï³\AA \BB\FD\BC\BA\C7Ñ´\D9.
+// 3. recordbuf\BF\A1 \C0\FA\C0\E5\B5Ç¾\EE \C0Ö´\C2 \B7\B9\C4Úµå¸¦ pagebuf\C0\C7 page\BF\A1 \C0\FA\C0\E5\C7Ñ´\D9(writeRecToPagebuf() \C7Ô¼\F6 \C0Ì¿\EB).
+// 4. \BC\F6\C1\A4\B5\C8 page\B8\A6 \B7\B9\C4Úµ\E5 \C6\C4\C0Ï¿\A1 \C0\FA\C0\E5\C7Ñ´\D9(writePage() \C7Ô¼\F6 \C0Ì¿\EB)
 // 
-// writePage()´Â ¼º°øÀûÀ¸·Î ¼öÇàÇÏ¸é '1'À», ±×·¸Áö ¾ÊÀ¸¸é '0'À» ¸®ÅÏÇÑ´Ù.
+// writePage()\B4\C2 \BC\BA\B0\F8\C0\FB\C0\B8\B7\CE \BC\F6\C7\E0\C7Ï¸\E9 '1'\C0\BB, \B1×·\B8\C1\F6 \BE\CA\C0\B8\B8\E9 '0'\C0\BB \B8\AE\C5\CF\C7Ñ´\D9.
 //
 int writePage(FILE *fp, const char *pagebuf, int pagenum);
 void writeRecToPagebuf(char *pagebuf, const char *recordbuf);
 void pack(char *recordbuf, const STUDENT *s);
 
 //
-// ·¹ÄÚµå ÆÄÀÏ¿¡¼­ fieldÀÇ Å°°ª(keyval)À» °®´Â ·¹ÄÚµå¸¦ °Ë»öÇÏ°í ±× °á°ú¸¦ Ãâ·ÂÇÑ´Ù.
-// °Ë»öµÈ ·¹ÄÚµå¸¦ Ãâ·ÂÇÒ ¶§ ¹Ýµå½Ã printSearchResult() ÇÔ¼ö¸¦ »ç¿ëÇÑ´Ù.
+// \B7\B9\C4Úµ\E5 \C6\C4\C0Ï¿\A1\BC\AD field\C0\C7 Å°\B0\AA(keyval)\C0\BB \B0\AE\B4\C2 \B7\B9\C4Úµå¸¦ \B0Ë»\F6\C7Ï°\ED \B1\D7 \B0\E1\B0\FA\B8\A6 \C3\E2\B7\C2\C7Ñ´\D9.
+// \B0Ë»\F6\B5\C8 \B7\B9\C4Úµå¸¦ \C3\E2\B7\C2\C7\D2 \B6\A7 \B9Ýµ\E5\BD\C3 printSearchResult() \C7Ô¼\F6\B8\A6 \BB\E7\BF\EB\C7Ñ´\D9.
 //
 void search(FILE *fp, FIELD f, char *keyval);
 void printSearchResult(const STUDENT *s, int n);
 
 //
-// ·¹ÄÚµå ÆÄÀÏ¿¡ »õ·Î¿î ÇÐ»ý ·¹ÄÚµå¸¦ Ãß°¡ÇÒ ¶§ »ç¿ëÇÑ´Ù. Ç¥ÁØ ÀÔ·ÂÀ¸·Î ¹ÞÀº ÇÊµå°ªµéÀ» ÀÌ¿ëÇÏ¿©
-// ÇÐ»ý °´Ã¼·Î ¹Ù²Û ÈÄ insert() ÇÔ¼ö¸¦ È£ÃâÇÑ´Ù.
+// \B7\B9\C4Úµ\E5 \C6\C4\C0Ï¿\A1 \BB\F5\B7Î¿\EE \C7Ð»\FD \B7\B9\C4Úµå¸¦ \C3ß°\A1\C7\D2 \B6\A7 \BB\E7\BF\EB\C7Ñ´\D9. Ç¥\C1\D8 \C0Ô·\C2\C0\B8\B7\CE \B9\DE\C0\BA \C7Êµå°ª\B5\E9\C0\BB \C0Ì¿\EB\C7Ï¿\A9
+// \C7Ð»\FD \B0\B4Ã¼\B7\CE \B9Ù²\DB \C8\C4 insert() \C7Ô¼\F6\B8\A6 È£\C3\E2\C7Ñ´\D9.
 //
 void insert(FILE *fp, const STUDENT *s);
 
 //
-// ·¹ÄÚµåÀÇ ÇÊµå¸íÀ» enum FIELD Å¸ÀÔÀÇ °ªÀ¸·Î º¯È¯½ÃÄÑ ÁØ´Ù.
-// ¿¹¸¦ µé¸é, »ç¿ëÀÚ°¡ ¼öÇàÇÑ ¸í·É¾îÀÇ ÀÎÀÚ·Î "NAME"ÀÌ¶ó´Â ÇÊµå¸íÀ» »ç¿ëÇÏ¿´´Ù¸é 
-// ÇÁ·Î±×·¥ ³»ºÎ¿¡¼­ ÀÌ¸¦ NAME(=1)À¸·Î º¯È¯ÇÒ ÇÊ¿ä¼ºÀÌ ÀÖÀ¸¸ç, ÀÌ¶§ ÀÌ ÇÔ¼ö¸¦ ÀÌ¿ëÇÑ´Ù.
+// \B7\B9\C4Úµ\E5\C0\C7 \C7Êµ\E5\B8\ED\C0\BB enum FIELD Å¸\C0\D4\C0\C7 \B0\AA\C0\B8\B7\CE \BA\AFÈ¯\BD\C3\C4\D1 \C1Ø´\D9.
+// \BF\B9\B8\A6 \B5\E9\B8\E9, \BB\E7\BF\EB\C0Ú°\A1 \BC\F6\C7\E0\C7\D1 \B8\ED\B7É¾\EE\C0\C7 \C0\CE\C0Ú·\CE "NAME"\C0Ì¶\F3\B4\C2 \C7Êµ\E5\B8\ED\C0\BB \BB\E7\BF\EB\C7Ï¿\B4\B4Ù¸\E9 
+// \C7\C1\B7Î±×·\A5 \B3\BB\BAÎ¿\A1\BC\AD \C0Ì¸\A6 NAME(=1)\C0\B8\B7\CE \BA\AFÈ¯\C7\D2 \C7Ê¿ä¼º\C0\CC \C0\D6\C0\B8\B8\E7, \C0Ì¶\A7 \C0\CC \C7Ô¼\F6\B8\A6 \C0Ì¿\EB\C7Ñ´\D9.
 //
 FIELD getFieldID(char *fieldname);
 
 //
-// ·¹ÄÚµå ÆÄÀÏÀÇ Çì´õ¸¦ ÀÐ¾î ¿À°Å³ª ¼öÁ¤ÇÒ ¶§ »ç¿ëÇÑ´Ù.
-// ¿¹¸¦ µé¾î, »õ·Î¿î #pages¸¦ ¼öÁ¤ÇÏ±â À§ÇØ¼­´Â ¸ÕÀú readFileHeader()¸¦ È£ÃâÇÏ¿© Çì´õÀÇ ³»¿ëÀ»
-// headerbuf¿¡ ÀúÀåÇÑ ÈÄ ¿©±â¿¡ #pages¸¦ ¼öÁ¤ÇÏ°í writeFileHeader()¸¦ È£ÃâÇÏ¿© º¯°æµÈ Çì´õ¸¦ 
-// ÀúÀåÇÑ´Ù. µÎ ÇÔ¼ö ¸ðµÎ ¼º°øÇÏ¸é '1'À», ±×·¸Áö ¾ÊÀ¸¸é '0'À» ¸®ÅÏÇÑ´Ù.
+// \B7\B9\C4Úµ\E5 \C6\C4\C0\CF\C0\C7 \C7\EC\B4\F5\B8\A6 \C0Ð¾\EE \BF\C0\B0Å³\AA \BC\F6\C1\A4\C7\D2 \B6\A7 \BB\E7\BF\EB\C7Ñ´\D9.
+// \BF\B9\B8\A6 \B5\E9\BE\EE, \BB\F5\B7Î¿\EE #pages\B8\A6 \BC\F6\C1\A4\C7Ï±\E2 \C0\A7\C7Ø¼\AD\B4\C2 \B8\D5\C0\FA readFileHeader()\B8\A6 È£\C3\E2\C7Ï¿\A9 \C7\EC\B4\F5\C0\C7 \B3\BB\BF\EB\C0\BB
+// headerbuf\BF\A1 \C0\FA\C0\E5\C7\D1 \C8\C4 \BF\A9\B1â¿¡ #pages\B8\A6 \BC\F6\C1\A4\C7Ï°\ED writeFileHeader()\B8\A6 È£\C3\E2\C7Ï¿\A9 \BA\AF\B0\E6\B5\C8 \C7\EC\B4\F5\B8\A6 
+// \C0\FA\C0\E5\C7Ñ´\D9. \B5\CE \C7Ô¼\F6 \B8\F0\B5\CE \BC\BA\B0\F8\C7Ï¸\E9 '1'\C0\BB, \B1×·\B8\C1\F6 \BE\CA\C0\B8\B8\E9 '0'\C0\BB \B8\AE\C5\CF\C7Ñ´\D9.
 //
 int readFileHeader(FILE *fp, char *headerbuf);
 
@@ -67,11 +67,11 @@ int ID_duplication_test(FILE *fp, const char *id);
 
 int main(int argc, char *argv[])
 {
-	FILE *fp;						// ¸ðµç file processing operationÀº C library¸¦ »ç¿ëÇÒ °Í
+	FILE *fp;						// \B8\F0\B5\E7 file processing operation\C0\BA C library\B8\A6 \BB\E7\BF\EB\C7\D2 \B0\CD
 
     fp = fopen(argv[2], "r+b");
     if(fp == NULL){
-        fclose(fp);
+        //fclose(fp);
         make_record_file(fp, argv[2]);
         fp = fopen(argv[2], "r+b");
         if(fp == NULL){
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    //·¹ÄÚµå ÀúÀå ºÎºÐ ±¸Çö
+    //\B7\B9\C4Úµ\E5 \C0\FA\C0\E5 \BAÎº\D0 \B1\B8\C7\F6
         if(strcmp(argv[1], "-i") == 0 ){
 
         if(argc != 10){
@@ -89,27 +89,27 @@ int main(int argc, char *argv[])
         }
 
 
-        STUDENT s; //°´Ã¼ »ý¼º
+        STUDENT s; //\B0\B4Ã¼ \BB\FD\BC\BA
         for(int i=3; i<10 ; i++) {
 
             char field[strlen(argv[i]) + 1];
             char value[strlen(argv[i]) + 1];
 
-            // field¿Í value¸¦ ÃÊ±âÈ­
+            // field\BF\CD value\B8\A6 \C3Ê±\E2È­
             memset(field, 0, sizeof(field));
             memset(value, 0, sizeof(value));
 
-            // argv[i] °ªÀ» º¹»çÇÏ¿© field¿Í value·Î ºÐ¸®
+            // argv[i] \B0\AA\C0\BB \BA\B9\BB\E7\C7Ï¿\A9 field\BF\CD value\B7\CE \BAÐ¸\AE
             int scanned = sscanf(argv[i], "%[^=]=%[^\n]", field, value);
 //            printf("Field: %s, Value: %s\n", field, value);
 
-            // value°¡ ºó ¹®ÀÚ¿­ÀÎÁö È®ÀÎÇÏ¿© Ã³¸®
+            // value\B0\A1 \BA\F3 \B9\AE\C0Ú¿\AD\C0\CE\C1\F6 È®\C0\CE\C7Ï¿\A9 Ã³\B8\AE
             if (scanned != 2 || strlen(value) == 0) {
                 fprintf(stderr, "Error: Invalid format or missing value for argument : %s\n", argv[i]);
                 exit(1);
             }
 
-            //valueÀÇ ±æÀÌ°¡ ¹üÀ§¸¦ ¹þ¾î³µÀ» ¶§ Ã³¸®
+            //value\C0\C7 \B1\E6\C0Ì°\A1 \B9\FC\C0\A7\B8\A6 \B9\FE\BEî³µ\C0\BB \B6\A7 Ã³\B8\AE
             switch (i) {
                 case 3:
                     if(strlen(value) > 8 ) {
@@ -198,8 +198,8 @@ int main(int argc, char *argv[])
             }
         }
 
-        //insert() ½ÇÇà Àü,,, ·¹ÄÚµå ÆÄÀÏ¿¡ ÇØ´ç ÇÐ¹øÀÌ ÀÌ¹Ì Á¸Àç ÇÏ´ÂÁö ¾Æ´ÑÁö °Ë»ç.
-        //Á¸ÀçÇÑ´Ù¸é...¿¡·¯ Ã³¸®
+        //insert() \BD\C7\C7\E0 \C0\FC,,, \B7\B9\C4Úµ\E5 \C6\C4\C0Ï¿\A1 \C7Ø´\E7 \C7Ð¹\F8\C0\CC \C0Ì¹\CC \C1\B8\C0\E7 \C7Ï´\C2\C1\F6 \BEÆ´\D1\C1\F6 \B0Ë»\E7.
+        //\C1\B8\C0\E7\C7Ñ´Ù¸\E9...\BF\A1\B7\AF Ã³\B8\AE
 
         if (ID_duplication_test(fp, s.id)) {
                 fprintf(stderr, "Error: A record with ID %s already exists.\n", s.id);
@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
 
     }
 
-    //·¹ÄÚµå ³» °Ë»ö ±¸Çö
+    //\B7\B9\C4Úµ\E5 \B3\BB \B0Ë»\F6 \B1\B8\C7\F6
     else if(strcmp(argv[1], "-s") ==0 ) {
 
         if(argc!=4) {
@@ -223,35 +223,35 @@ int main(int argc, char *argv[])
         char field[strlen(argv[3]) + 1];
         char value[strlen(argv[3]) + 1];
 
-            // field¿Í value¸¦ ÃÊ±âÈ­
+            // field\BF\CD value\B8\A6 \C3Ê±\E2È­
             memset(field, 0, sizeof(field));
             memset(value, 0, sizeof(value));
 
 
-//        // argv[i] °ªÀ» º¹»çÇÏ¿© field¿Í value·Î ºÐ¸®
-//        int scanned = sscanf(argv[3], "%[^=]=%[^\0]", field, value);
-////        printf("Field: %s, Value: %s\n", field, value);
-//
-//            if (scanned != 2 || strlen(value) == 0) {
-//                fprintf(stderr, "Error: Invalid format or missing value for argument : %s\n", argv[3]);
-//                exit(1);
+//        // argv[i] \B0\AA\C0\BB \BA\B9\BB\E7\C7Ï¿\A9 field\BF\CD value\B7\CE \BAÐ¸\AE
+        int scanned = sscanf(argv[3], "%[^=]=%[^\n]", field, value);
+//        printf("Field: %s, Value: %s\n", field, value);
+
+            if (scanned != 2 || strlen(value) == 0) {
+                fprintf(stderr, "Error: Invalid format or missing value for argument : %s\n", argv[3]);
+                exit(1);
+            }
+
+
+//            char *equal_sign = strchr(argv[3], '=');
+//            if (equal_sign == NULL) {
+//                fprintf(stderr, "Error: Invalid format. Missing '='\n");
+//                return 1;
 //            }
 
-
-            char *equal_sign = strchr(argv[3], '=');
-            if (equal_sign == NULL) {
-                fprintf(stderr, "Error: Invalid format. Missing '='\n");
-                return 1;
-            }
-
-            strncpy(field, argv[3], equal_sign - argv[3]);
-            strcpy(value, equal_sign + 1);
+//            strncpy(field, argv[3], equal_sign - argv[3]);
+//            strcpy(value, equal_sign + 1);
 
             // Check if value is empty
-            if (strlen(value) == 0) {
-                fprintf(stderr, "Error: Value for field %s is missing.\n", field);
-                return 1;
-            }
+//            if (strlen(value) == 0) {
+//                fprintf(stderr, "Error: Value for field %s is missing.\n", field);
+//                return 1;
+//            }
 
 
         FIELD field_id = getFieldID(field);
@@ -279,14 +279,14 @@ int main(int argc, char *argv[])
 
 
 void make_record_file(FILE *fp, const char *file_name){
-    //Ã³À½ ·¹ÄÚµå ÆÄÀÏ »ý¼º ½Ã. Çì´õ¸¸ »ý¼º.
+    //Ã³\C0\BD \B7\B9\C4Úµ\E5 \C6\C4\C0\CF \BB\FD\BC\BA \BD\C3. \C7\EC\B4\F5\B8\B8 \BB\FD\BC\BA.
     fp = fopen(file_name, "w+b");
     if (fp == NULL) {
         perror("make_record_file() : Error creating file");
         exit(1);
     }
 
-    //headerbuf¿¡ total_pages Àû¾îÁÜ.
+    //headerbuf\BF\A1 total_pages \C0\FB\BE\EE\C1\DC.
     char headerbuf[FILE_HEADER_SIZE];
     memset(headerbuf, 0xFF, FILE_HEADER_SIZE);
 
@@ -325,11 +325,11 @@ int readPage(FILE *fp, char *pagebuf, int pagenum){
 
 int getRecFromPagebuf(const char *pagebuf, char *recordbuf, int recordnum){
 
-    //PageÀÇ header areaÀÇ Ã¹ 2 byte¿¡ ÀúÀåµÇ¾îÀÖ´Â #records Á¤º¸.
+    //Page\C0\C7 header area\C0\C7 Ã¹ 2 byte\BF\A1 \C0\FA\C0\E5\B5Ç¾\EE\C0Ö´\C2 #records \C1\A4\BA\B8.
     unsigned short total_records;
     memcpy(&total_records, pagebuf, sizeof(total_records));
 
-    //ÀüÃ¼·¹ÄÚµå ¼öº¸´Ù Å« recordnumÀÌ µé¾î¿À¸é error
+    //\C0\FCÃ¼\B7\B9\C4Úµ\E5 \BC\F6\BA\B8\B4\D9 Å« recordnum\C0\CC \B5\E9\BE\EE\BF\C0\B8\E9 error
     if(recordnum >= total_records){
         fprintf(stderr, "getRecFromPagebuf() : recordnum is bigger than total record number\n");
         return 0;
@@ -340,14 +340,14 @@ int getRecFromPagebuf(const char *pagebuf, char *recordbuf, int recordnum){
     }
 
 
-    if(recordnum == 0){ //0¹øÂ° ·¹ÄÚµå¸¦ ÀÐ¾î¶ó.
+    if(recordnum == 0){ //0\B9\F8Â° \B7\B9\C4Úµå¸¦ \C0Ð¾\EE\B6\F3.
         unsigned short offset;
         memcpy(&offset, pagebuf+8, sizeof(offset));
         memcpy(recordbuf, pagebuf+PAGE_HEADER_SIZE, offset+1);
 
         return 1;
     }
-    else{ // recordnum¹øÂ° ·¹ÄÚµå¸¦ ÀÐ¾î¶ó..
+    else{ // recordnum\B9\F8Â° \B7\B9\C4Úµå¸¦ \C0Ð¾\EE\B6\F3..
         unsigned short offset1;
         memcpy(&offset1, pagebuf + 8 + (recordnum-1)*2, sizeof(offset1));
         unsigned short offset2;
@@ -395,7 +395,7 @@ int writePage(FILE *fp, const char *pagebuf, int pagenum){
 }
 
 void writeRecToPagebuf(char *pagebuf, const char *recordbuf) {
-    //recordbuf¸¦ pagebuf¿¡ Àû¾î¾ßµÊ.
+    //recordbuf\B8\A6 pagebuf\BF\A1 \C0\FB\BE\EE\BEßµ\CA.
 
     unsigned short total_records=0;
     memcpy(&total_records, pagebuf, sizeof(total_records));
@@ -403,9 +403,9 @@ void writeRecToPagebuf(char *pagebuf, const char *recordbuf) {
     unsigned short free_space;
     memcpy(&free_space, pagebuf+2, sizeof(free_space));
 
-    //ÆäÀÌÁö ³»¿¡ ÀûÇôÀÖ´ø ¸¶Áö¸· ·¹ÄÚµå ´ÙÀ½ offset¿¡ Àû´Â´Ù.
+    //\C6\E4\C0\CC\C1\F6 \B3\BB\BF\A1 \C0\FB\C7\F4\C0Ö´\F8 \B8\B6\C1\F6\B8\B7 \B7\B9\C4Úµ\E5 \B4\D9\C0\BD offset\BF\A1 \C0\FB\B4Â´\D9.
     unsigned short offset;
-    if(total_records == 0){//Ã³À½ Àû´Â °æ¿ì
+    if(total_records == 0){//Ã³\C0\BD \C0\FB\B4\C2 \B0\E6\BF\EC
         offset = 0;
         memcpy(pagebuf+PAGE_HEADER_SIZE, recordbuf, strlen(recordbuf));
     }
@@ -414,12 +414,12 @@ void writeRecToPagebuf(char *pagebuf, const char *recordbuf) {
         memcpy(pagebuf+PAGE_HEADER_SIZE+offset+1, recordbuf, strlen(recordbuf));
     }
 
-    //Àû¾úÀ¸¹Ç·Î total_record + 1 ÇØÁà¾ßµÊ.
+    //\C0\FB\BE\FA\C0\B8\B9Ç·\CE total_record + 1 \C7\D8\C1\E0\BEßµ\CA.
     total_records++;
     memcpy(pagebuf, &total_records, sizeof(total_records));
 
 
-    //»õ·Ó°Ô ÀûÀº ·¹ÄÚµåÀÇ ¸¶Áö¸· offsetÀ» ±â·ÏÇØÁà¾ßµÊ.
+    //\BB\F5\B7Ó°\D4 \C0\FB\C0\BA \B7\B9\C4Úµ\E5\C0\C7 \B8\B6\C1\F6\B8\B7 offset\C0\BB \B1\E2\B7\CF\C7\D8\C1\E0\BEßµ\CA.
     unsigned short new_offset;
     if(offset ==0) {
         new_offset = offset + strlen(recordbuf) - 1;
@@ -430,11 +430,11 @@ void writeRecToPagebuf(char *pagebuf, const char *recordbuf) {
 
     memcpy(pagebuf + 8 + (total_records-1) * 2, &new_offset, sizeof(new_offset));
 
-    //free_space °ª update
+    //free_space \B0\AA update
     free_space = PAGE_SIZE-PAGE_HEADER_SIZE - new_offset-1;
     memcpy(pagebuf+2, &free_space, sizeof(free_space));
 
-    //Å×½ºÆ® ÄÚµå
+    //\C5×½\BAÆ® \C4Úµ\E5
 //    printf("writeRecToPagebuf() test\n");
 //    for(int i=0; i<PAGE_SIZE; i++){
 //        printf("%02x ", pagebuf[i]);
@@ -456,7 +456,7 @@ void pack(char *recordbuf, const STUDENT *s){
 
 
 void search(FILE *fp, FIELD f, char *keyval){
-    //·¹ÄÚµå ÆÄÀÏ¿¡¼­ fieldÀÇ Å°°ª(keyval)À» °®´Â ·¹ÄÚµå¸¦ °Ë»ö
+    //\B7\B9\C4Úµ\E5 \C6\C4\C0Ï¿\A1\BC\AD field\C0\C7 Å°\B0\AA(keyval)\C0\BB \B0\AE\B4\C2 \B7\B9\C4Úµå¸¦ \B0Ë»\F6
     char headerbuf[FILE_HEADER_SIZE];
     if (!readFileHeader(fp, headerbuf)) {
         fprintf(stderr, "search() : Failed to read file header\n");
@@ -512,7 +512,7 @@ void search(FILE *fp, FIELD f, char *keyval){
 
 
                 if (field_value && strcmp(field_value, keyval) == 0) {
-                        if (found_count < 1000) { // found_records ¹è¿­ÀÇ Å©±â Á¦ÇÑ Ã¼Å©
+                        if (found_count < 1000) { // found_records \B9è¿­\C0\C7 Å©\B1\E2 \C1\A6\C7\D1 Ã¼Å©
                             found_records[found_count++] = s;
                         } else {
                             fprintf(stderr, "search() : Found record limit reached at 1000.\n");
@@ -568,7 +568,7 @@ int ID_duplication_test(FILE *fp, const char *id) {
             unpack(recordbuf, &s);
 
             if (strcmp(s.id, id) == 0) {
-                return 1; // Áßº¹ ID, ÀÌ¹Ì ID°¡ Á¸ÀçÇÒ ‹š 1 return.
+                return 1; // \C1ßº\B9 ID, \C0Ì¹\CC ID\B0\A1 \C1\B8\C0\E7\C7\D2 \8B\9A 1 return.
             }
         }
     }
@@ -597,11 +597,11 @@ void insert(FILE *fp, const STUDENT *s){
     unsigned short free_space=PAGE_SIZE-PAGE_HEADER_SIZE;
     unsigned short total_records = 0;
 
-    //Ã¹ ¹øÂ° ·¹ÄÚµå ÀúÀåÀÇ °æ¿ì ÀÐ¾î¿Ã ÆäÀÌÁö°¡ ¾øÀ¸´Ï,,,
-    //Ã³À½ insertÇÒ¶§, ÆäÀÌÁö°¡ ¾ÆÁ÷ ¾øÀ¸¹Ç·Î readPage() »ý·«..
+    //Ã¹ \B9\F8Â° \B7\B9\C4Úµ\E5 \C0\FA\C0\E5\C0\C7 \B0\E6\BF\EC \C0Ð¾\EE\BF\C3 \C6\E4\C0\CC\C1\F6\B0\A1 \BE\F8\C0\B8\B4\CF,,,
+    //Ã³\C0\BD insert\C7Ò¶\A7, \C6\E4\C0\CC\C1\F6\B0\A1 \BE\C6\C1\F7 \BE\F8\C0\B8\B9Ç·\CE readPage() \BB\FD\B7\AB..
     if(total_pages > 0) {
         last_page_num = total_pages - 1;
-        if (!readPage(fp, pagebuf, last_page_num)) { //pagebuf¸¦ °¡Á®¿Â´Ù.
+        if (!readPage(fp, pagebuf, last_page_num)) { //pagebuf\B8\A6 \B0\A1\C1\AE\BFÂ´\D9.
             fprintf(stderr, "insert() : Failed to read last page\n");
             return;
         }
@@ -609,8 +609,8 @@ void insert(FILE *fp, const STUDENT *s){
         memcpy(&total_records, pagebuf, sizeof(total_records));
     }
     else if(total_pages == 0){
-        // »õ·Î¿î ÆäÀÌÁö¸¦ »ý¼ºÇÏ´Â °æ¿ì ÆäÀÌÁö¸¦ ÃÊ±âÈ­
-        memset(pagebuf, 0xFF, PAGE_SIZE); // empty pagebuf·Î ¸¸µé¾îÁÜ
+        // \BB\F5\B7Î¿\EE \C6\E4\C0\CC\C1\F6\B8\A6 \BB\FD\BC\BA\C7Ï´\C2 \B0\E6\BF\EC \C6\E4\C0\CC\C1\F6\B8\A6 \C3Ê±\E2È­
+        memset(pagebuf, 0xFF, PAGE_SIZE); // empty pagebuf\B7\CE \B8\B8\B5\E9\BE\EE\C1\DC
 
         memcpy(pagebuf, &total_records, sizeof(total_records));
 
@@ -621,11 +621,11 @@ void insert(FILE *fp, const STUDENT *s){
 
 
 
-    //ÇØ´ç ÆäÀÌÁö¿¡ ¾µ ¼ö ¾ø´Â °æ¿ì. ´ÙÀ½ ÆäÀÌÁö¿¡ ½á¾ßÇÏ´Â °æ¿ì
+    //\C7Ø´\E7 \C6\E4\C0\CC\C1\F6\BF\A1 \BE\B5 \BC\F6 \BE\F8\B4\C2 \B0\E6\BF\EC. \B4\D9\C0\BD \C6\E4\C0\CC\C1\F6\BF\A1 \BD\E1\BE\DF\C7Ï´\C2 \B0\E6\BF\EC
     if(free_space <  strlen(recordbuf) ){
         total_pages++;
         last_page_num = total_pages - 1;
-        memset(pagebuf, 0xFF, PAGE_SIZE); //empty pagebuf·Î ¸¸µé¾îÁÜ.
+        memset(pagebuf, 0xFF, PAGE_SIZE); //empty pagebuf\B7\CE \B8\B8\B5\E9\BE\EE\C1\DC.
         total_records = 0;
         memcpy(pagebuf, &total_records, sizeof(total_records));
         free_space=PAGE_SIZE-PAGE_HEADER_SIZE;
@@ -636,7 +636,7 @@ void insert(FILE *fp, const STUDENT *s){
     writeRecToPagebuf(pagebuf, recordbuf);
     writePage(fp, pagebuf, last_page_num);
 
-    // Çì´õ ¾÷µ¥ÀÌÆ®
+    // \C7\EC\B4\F5 \BE\F7\B5\A5\C0\CCÆ®
     if (total_records == 0 || free_space < strlen(recordbuf)) {
         memcpy(headerbuf, &total_pages, sizeof(total_pages));
         writeFileHeader(fp, headerbuf);
@@ -672,9 +672,9 @@ FIELD getFieldID(char *fieldname){
 
 int readFileHeader(FILE *fp, char *headerbuf){
     if(fseek(fp, 0, SEEK_SET) != 0) return 0;
-    //headerÀÇ ¸Ç ¾Õ 2B¿¡ ÀüÃ¼ ÆäÀÌÁö¼ö°¡ ÀúÀåµÇ¾î ÀÖÀ½.
+    //header\C0\C7 \B8\C7 \BE\D5 2B\BF\A1 \C0\FCÃ¼ \C6\E4\C0\CC\C1\F6\BC\F6\B0\A1 \C0\FA\C0\E5\B5Ç¾\EE \C0\D6\C0\BD.
 
-    //Çì´õ ÀÐ¾î¿À±â
+    //\C7\EC\B4\F5 \C0Ð¾\EE\BF\C0\B1\E2
     if (fread(headerbuf, 1, FILE_HEADER_SIZE, fp) != FILE_HEADER_SIZE) {
         return 0;
     }
