@@ -1,4 +1,4 @@
-#include <stdio.h>		// 필요한 header file 추가 가능
+#include <stdio.h>		// \C7?\E4\C7\D1 header file \C3?\A1 \B0\A1\B4\C9
 #include "student.h"
 #include <string.h>
 #include <stdlib.h>
@@ -61,6 +61,10 @@ FIELD getFieldID(char *fieldname);
 int readFileHeader(FILE *fp, char *headerbuf);
 int writeFileHeader(FILE *fp, const char *headerbuf);
 
+void make_record_file(FILE *fp, const char *file_name);
+
+int ID_duplication_test(FILE *fp, const char *id);
+
 //
 // '학번' 키값을 갖는 학생 레코드를 삭제한다. 이때 삭제 레코드 리스트를 유지 관리하도록 구현되어야 한다.
 //
@@ -69,17 +73,14 @@ void delete(FILE *fp, char *keyval);
 // 
 // '학번' 키값을 갖는 학생 레코드를 검색하여 해당 레코드를 recordbuf에 저장한다.
 // 그리고 해당 레코드의 페이지 번호와 레코드 번호를 리턴한다. 이것 두 개가 필요한 이유는,
-// 새로운 삭제 레코드가 생기면 삭제 레코드 리스트를 업데이트해야 하고 최종적으로 파일 헤더의
+// 새로운 삭제 레코드가 생기면 삭제 레코드 리스트를 업데이트해야 하고 최종적으로 파일 헤더의 
 // pagenum와 recnum의 값을 각각 새로운 삭제 레코드의 pagenum와 recnum로 수정해야 하기 때문이다.
 // 이 함수는 위의 delete() 함수에서 호출해서 사용한다.
 // 검색 결과 레코드가 존재하면 '1', 그렇지 않으면 '0'을 리턴한다.
 //
 int searchByID(FILE *fp, char *keyval, char *recordbuf, int *pagenum, int *recordnum);
 
-void make_record_file(FILE *fp, const char *file_name);
-
-int ID_duplication_test(FILE *fp, const char *id);
-
+unsigned short getRecordLength(FILE *fp, int pagenum, int recordnum);
 
 int main(int argc, char *argv[])
 {
@@ -87,6 +88,7 @@ int main(int argc, char *argv[])
 
     fp = fopen(argv[2], "r+b");
     if(fp == NULL){
+        //fclose(fp);
         make_record_file(fp, argv[2]);
         fp = fopen(argv[2], "r+b");
         if(fp == NULL){
@@ -286,7 +288,7 @@ int main(int argc, char *argv[])
             fprintf(stderr, "need only 1 ID as a key.\n");
             exit(1);
         }
-
+//        printf("-d success\n");
         char ID[strlen(argv[3]) + 1];
         char value[strlen(argv[3]) + 1];
 
@@ -322,36 +324,6 @@ int main(int argc, char *argv[])
 
 
 
-
-void make_record_file(FILE *fp, const char *file_name){
-    //처음 레코드 파일 생성 시. 헤더만 생성.
-    fp = fopen(file_name, "w+b");
-    if (fp == NULL) {
-        perror("make_record_file() : Error creating file");
-        exit(1);
-    }
-
-    char headerbuf[FILE_HEADER_SIZE];
-    memset(headerbuf, 0xFF, FILE_HEADER_SIZE);
-
-    //headerbuf에 total_pages 적어줌.
-    unsigned short total_pages = 0; // including header page
-    memcpy(headerbuf, &total_pages, sizeof(total_pages));
-
-    //레코드 파일의 헤더영역의 reserved space의 2B, 2B에 page_num = -1, record_num = -1로 초기화
-    unsigned short page_num = -1;
-    memcpy(headerbuf+2, &page_num, sizeof(page_num));
-    unsigned short record_num = -1;
-    memcpy(headerbuf+4, &record_num, sizeof(record_num));
-
-
-    if (!writeFileHeader(fp, headerbuf)) {
-        fprintf(stderr, "make_record_file() : Failed to write file header\n");
-        exit(1);
-    }
-
-    fclose(fp);
-}
 
 int readPage(FILE *fp, char *pagebuf, int pagenum){
     if (fseek(fp, FILE_HEADER_SIZE + pagenum * PAGE_SIZE, SEEK_SET) != 0) {
@@ -418,12 +390,6 @@ int getRecFromPagebuf(const char *pagebuf, char *recordbuf, int recordnum){
 
 }
 
-void unpack(const char *recordbuf, STUDENT *s){
-    sscanf(recordbuf, "%[^#]#%[^#]#%[^#]#%[^#]#%[^#]#%[^#]#%[^#]",
-           s->id, s->name, s->dept, s->year, s->addr, s->phone, s->email);
-}
-
-
 
 
 int writePage(FILE *fp, const char *pagebuf, int pagenum){
@@ -447,16 +413,13 @@ int writePage(FILE *fp, const char *pagebuf, int pagenum){
 }
 
 void writeRecToPagebuf(char *pagebuf, const char *recordbuf) {
-    //pagebuf를 불러와서...다양한 검사를 진행..
     //recordbuf를 pagebuf에 적어야됨.
 
-    unsigned short total_records=0;
+    unsigned short total_records;
     memcpy(&total_records, pagebuf, sizeof(total_records));
 
     unsigned short free_space;
     memcpy(&free_space, pagebuf+2, sizeof(free_space));
-
-    int no_fit = 1;
 
     //페이지 내에 적혀있던 마지막 레코드 다음 offset에 적는다.
     unsigned short offset;
@@ -465,135 +428,190 @@ void writeRecToPagebuf(char *pagebuf, const char *recordbuf) {
         memcpy(pagebuf+PAGE_HEADER_SIZE, recordbuf, strlen(recordbuf));
     }
     else {
-        //first-fit 전략을 사용. 만약에 넣을 수 있는 곳에 없으면 맨뒤에 append.
-        for (int i = 0; i < total_records; i++) {
-            //'*' 마킹되어있는지 검사.
-            int del_marker;
-            unsigned short offset_curr;
-            if (i == 0) {
-                memcpy(&del_marker, pagebuf + 8, 1);
-            }else {
-                memcpy(&offset, pagebuf + 8 + 2 * (i - 1), 2);
-                memcpy(&del_marker, pagebuf + PAGE_HEADER_SIZE + offset + 1, 1);
-            }
-
-            //길이에 대한 비교..
-            if (del_marker == '*' && i <total_records-1) {
-                if(i == 0 ){
-                    memcpy(&offset_curr, pagebuf + 8 , 2);
-                    //적을 수 있는 경우
-                    if( strlen(recordbuf) <= offset_curr+1){
-                        no_fit=0;
-                        memcpy(pagebuf + PAGE_HEADER_SIZE, recordbuf, strlen(recordbuf));
-                    }
-                }
-                else {
-                    memcpy(&offset, pagebuf + 8 + 2 * (i - 1), 2);
-                    memcpy(&offset_curr, pagebuf + 8 + 2 * i, 2);
-                    //적을 수 있는 경우..
-                    if (strlen(recordbuf) <= offset_curr - offset-1) {
-                        no_fit = 0;
-                        memcpy(pagebuf + PAGE_HEADER_SIZE + offset_curr + 1, recordbuf, strlen(recordbuf));
-                    }
-
-                }
-            }
-
-            //맨 마지막 record가 지워진 경우..
-            if(del_marker == '*' && i == total_records-1) {
-                //적을 수 있는 경우.
-                if (offset + strlen(recordbuf) <= PAGE_SIZE - PAGE_HEADER_SIZE) {
-                    no_fit = 0;
-                    memcpy(pagebuf + PAGE_HEADER_SIZE + offset_curr + 1, recordbuf, strlen(recordbuf));
-                }
-                else{
-                    //다음 빈 페이지에 적어야하는 경우.
-                    //empty pagebuf를 만들고 거기에 써서 넘겨줘야함.
-                    no_fit = 1;
-
-                    memset(pagebuf, 0xFF, PAGE_SIZE); //empty pagebuf로 만들어줌.
-
-                    //recordbuf를 pagebuf에 쓴다.
-                    memcpy(pagebuf + PAGE_HEADER_SIZE, recordbuf, strlen(recordbuf));
-
-                    //헤더 업데이트
-                    total_records = 1;
-                    memcpy(pagebuf, &total_records, sizeof(total_records));
-
-                    free_space=PAGE_SIZE-PAGE_HEADER_SIZE- strlen(recordbuf);
-                    memcpy(pagebuf+2, &free_space, sizeof(free_space));
-
-                    unsigned short offset_by_len = strlen(recordbuf)-1;
-                    memcpy(pagebuf+8, &offset_by_len, sizeof(offset_by_len));
-
-
-                }
-            }
-        }
-
+        memcpy(&offset, pagebuf + 8 + (total_records - 1) * 2, sizeof(offset));
+        memcpy(pagebuf+PAGE_HEADER_SIZE+offset+1, recordbuf, strlen(recordbuf));
     }
 
-    //del된 곳이 없을 경우 --> 맨 뒤에 append.. 맨 뒤에 쓸 수 없다면 다음 페이지로 넘겨줘야함.
-    if (no_fit) {
-        if(strlen(recordbuf) > free_space){
-            //다음 빈 페이지에 적어야하는 경우.
-            //empty pagebuf를 만들고 거기에 써서 넘겨줘야함.
-
-            memset(pagebuf, 0xFF, PAGE_SIZE); //empty pagebuf로 만들어줌.
-
-            //recordbuf를 pagebuf에 쓴다.
-            memcpy(pagebuf + PAGE_HEADER_SIZE, recordbuf, strlen(recordbuf));
-
-            //헤더 업데이트
-            total_records = 1;
-            memcpy(pagebuf, &total_records, sizeof(total_records));
-
-            free_space=PAGE_SIZE-PAGE_HEADER_SIZE- strlen(recordbuf);
-            memcpy(pagebuf+2, &free_space, sizeof(free_space));
-
-            unsigned short offset_by_len = strlen(recordbuf)-1;
-            memcpy(pagebuf+8, &offset_by_len, sizeof(offset_by_len));
-        }
-        else{
-            //맨 뒤에 append 가능한 경우
-            // total_record + 1 해줘야됨.
-            total_records++;
-            memcpy(pagebuf, &total_records, sizeof(total_records));
+    //적었으므로 total_record + 1 해줘야됨.
+    total_records++;
+    memcpy(pagebuf, &total_records, sizeof(total_records));
 
 
-            //새롭게 적은 레코드의 마지막 offset을 기록해줘야됨.
-            unsigned short new_offset;
-            if (offset == 0) {
-                new_offset = offset + strlen(recordbuf) - 1;
-            } else {
-                new_offset = offset + strlen(recordbuf);
-            }
-
-            memcpy(pagebuf + 8 + (total_records - 1) * 2, &new_offset, sizeof(new_offset));
-
-            //free_space 값 update
-            free_space = PAGE_SIZE - PAGE_HEADER_SIZE - new_offset - 1;
-            memcpy(pagebuf + 2, &free_space, sizeof(free_space));
-
-
-            memcpy(&offset, pagebuf + 8 + (total_records - 1) * 2, sizeof(offset));
-            memcpy(pagebuf + PAGE_HEADER_SIZE + offset + 1, recordbuf, strlen(recordbuf));
-
-        }
+    //새롭게 적은 레코드의 마지막 offset을 기록해줘야됨.
+    unsigned short new_offset;
+    if(offset ==0) {
+        new_offset = offset + strlen(recordbuf)-1 ;
+    }
+    else{
+        new_offset = offset+strlen(recordbuf);
     }
 
+    memcpy(pagebuf + 8 + (total_records-1) * 2, &new_offset, sizeof(new_offset));
+
+    //free_space 값 update
+    free_space = PAGE_SIZE-PAGE_HEADER_SIZE - new_offset-1;
+    memcpy(pagebuf+2, &free_space, sizeof(free_space));
 
 
 }
 
-void pack(char *recordbuf, const STUDENT *s){
 
-    int n = snprintf(recordbuf,  MAX_RECORD_SIZE, "%s#%s#%s#%s#%s#%s#%s#",
-                     s->id, s->name, s->dept, s->year, s->addr, s->phone, s->email);
-    if(n >= MAX_RECORD_SIZE){
-        fprintf(stderr, "pack() : Record buffer size exceeded. Actual size : %d\n", n);
+
+
+void insert(FILE *fp, const STUDENT *s){
+
+    char headerbuf[FILE_HEADER_SIZE];
+    if (!readFileHeader(fp, headerbuf)) {
+        fprintf(stderr, "Failed to read file header\n");
+        return;
     }
-//    printf("pack() this is recorbuf: %s\n", recordbuf);
+
+    short total_pages;
+    memcpy(&total_pages, headerbuf, sizeof(total_pages));
+
+    short del_pagenum;
+    memcpy(&del_pagenum, headerbuf+2, sizeof(del_pagenum));
+
+    short del_recordnum;
+    memcpy(&del_recordnum, headerbuf+4, sizeof(del_recordnum));
+
+    char pagebuf[PAGE_SIZE];
+    char recordbuf[MAX_RECORD_SIZE];
+
+    char target_buf[MAX_RECORD_SIZE];
+    pack(target_buf, s);
+    unsigned short target_len = strlen(target_buf);
+
+    short cur_pagenum = del_pagenum;
+    short cur_recordnum = del_recordnum; //현재 페이지, 레코드 번호.. 현재 페이지의 주소
+    short prev_pagenum = -1;
+    short prev_recordnum = -1; // 이전 페이지, 레코드 번호.. 다음 링크의 페이지 주소.
+    short next_pagenum;
+    short next_recordnum;
+    unsigned short record_len;
+
+    //삭제 리스트를 따라 먼저 넣을 수 있는 곳이 있는지 찾아보고 넣을 수 있다면 그 위치에 넣고 리스트 업데이트
+    //넣을 수 있는 곳이 없다면...기존 방법 그대로 유지.
+
+    // 삭제 리스트를 따라 삽입 위치를 찾는 로직
+    while (cur_pagenum != -1 && cur_recordnum != -1) {
+        readPage(fp, pagebuf, cur_pagenum);
+        getRecFromPagebuf(pagebuf, recordbuf, cur_recordnum);
+
+        memcpy(&next_pagenum, recordbuf+1, sizeof(next_pagenum));
+        memcpy(&next_recordnum, recordbuf+3, sizeof(next_recordnum));
+        record_len = getRecordLength(fp, cur_pagenum, cur_recordnum);
+//        record_len = strlen(recordbuf);
+
+        // 적절한 삭제된 레코드 위치를 찾은 경우
+        if (record_len >= target_len) {
+            memset(recordbuf, 0xff, record_len);
+            memcpy(recordbuf, target_buf, target_len);
+
+            if (cur_recordnum == 0) {
+                memcpy(pagebuf + PAGE_HEADER_SIZE, recordbuf, record_len);
+            } else {
+                unsigned short tmp_offset;
+                memcpy(&tmp_offset, pagebuf + 8 + (cur_recordnum - 1) * 2, sizeof(tmp_offset));
+                memcpy(pagebuf + PAGE_HEADER_SIZE + tmp_offset+1, recordbuf, record_len);
+            }
+            writePage(fp, pagebuf, cur_pagenum);
+
+            // 리스트의 top에서 업데이트하는 경우
+            if (prev_pagenum == -1 && prev_recordnum == -1) {
+                // record file header 업데이트
+                memcpy(headerbuf + 2, &next_pagenum, sizeof(next_pagenum));
+                memcpy(headerbuf + 4, &next_recordnum, sizeof(next_recordnum));
+                writeFileHeader(fp, headerbuf);
+            }
+            else {
+                // 리스트 중간에서 업데이트하는 경우
+                readPage(fp, pagebuf, prev_pagenum);
+                char prev_recordbuf[MAX_RECORD_SIZE];
+                getRecFromPagebuf(pagebuf, prev_recordbuf, prev_recordnum);
+                record_len = getRecordLength(fp, prev_pagenum, prev_recordnum);
+//                record_len = strlen(prev_recordbuf);
+                memcpy(prev_recordbuf + 1, &next_pagenum, sizeof(cur_pagenum));
+                memcpy(prev_recordbuf + 3, &next_recordnum, sizeof(cur_recordnum));
+
+                if (prev_recordnum == 0) {
+                    memcpy(pagebuf + PAGE_HEADER_SIZE, prev_recordbuf, record_len);
+                } else {
+                    unsigned short tmp_offset;
+                    memcpy(&tmp_offset, pagebuf + 8 + (prev_recordnum - 1) * 2, sizeof(tmp_offset));
+                    memcpy(pagebuf + PAGE_HEADER_SIZE + tmp_offset+1, prev_recordbuf, record_len);
+                }
+                writePage(fp, pagebuf, prev_pagenum);
+            }
+
+            return;
+        }
+
+        // 다음 삭제된 레코드 위치로 이동
+        prev_pagenum = cur_pagenum;
+        prev_recordnum = cur_recordnum;
+        cur_pagenum = next_pagenum;
+        cur_recordnum = next_recordnum;
+//        memcpy(&cur_pagenum, &next_pagenum, sizeof(cur_pagenum));
+//        memcpy(&cur_recordnum, &next_recordnum, sizeof(cur_recordnum));
+
+
+    }
+
+
+    //삭제된 위치에 삽입이 안된는 경우..맨 뒤에 append.
+
+    int last_page_num = 0;
+    unsigned short free_space=PAGE_SIZE-PAGE_HEADER_SIZE;
+    unsigned short total_records = 0;
+
+    //첫 번째 레코드 저장의 경우 읽어올 페이지가 없으니,,,
+    //처음 insert할때, 페이지가 아직 없으므로 readPage() 생략..
+    if(total_pages > 0) {
+        last_page_num = total_pages - 1;
+        if (!readPage(fp, pagebuf, last_page_num)) {  //pagebuf를 가져온다.
+            fprintf(stderr, "insert() : Failed to read last page\n");
+            return;
+        }
+        memcpy(&free_space, pagebuf+2, sizeof(free_space));
+        memcpy(&total_records, pagebuf, sizeof(total_records));
+    }
+    else if(total_pages == 0){
+        // 새로운 페이지를 생성하는 경우 페이지를 초기화
+        memset(pagebuf, 0xFF, PAGE_SIZE); // empty pagebuf로 만들어줌
+
+        memcpy(pagebuf, &total_records, sizeof(total_records));
+
+        memcpy(pagebuf+2, &free_space, sizeof(free_space));
+        total_pages = 1;
+        last_page_num = 0;
+    }
+
+
+
+    //해당 페이지에 쓸 수 없는 경우. 다음 페이지에 써야하는 경우
+    if(free_space < target_len ){
+        total_pages++;
+        last_page_num = total_pages - 1;
+        memset(pagebuf, 0xFF, PAGE_SIZE); //empty pagebuf로 만들어줌.
+        total_records = 0;
+        memcpy(pagebuf, &total_records, sizeof(total_records));
+        free_space=PAGE_SIZE-PAGE_HEADER_SIZE;
+        memcpy(pagebuf+2, &free_space, sizeof(free_space));
+
+    }
+
+    writeRecToPagebuf(pagebuf, target_buf);
+    writePage(fp, pagebuf, last_page_num);
+
+    // 헤더 업데이트
+    if (total_records == 0 || free_space < target_len) {
+        memcpy(headerbuf, &total_pages, sizeof(total_pages));
+        writeFileHeader(fp, headerbuf);
+    }
+
+
+
 }
 
 
@@ -670,16 +688,142 @@ void search(FILE *fp, FIELD f, char *keyval){
     printSearchResult(found_records, found_count);
 }
 
-void printSearchResult(const STUDENT *s, int n)
-{
-    int i;
 
-    printf("#Records = %d\n", n);
+void delete(FILE *fp, char *keyval){
+    char recordbuf[MAX_RECORD_SIZE];
 
-    for(i=0; i<n; i++)
-    {
-        printf("%s#%s#%s#%s#%s#%s#%s\n", s[i].id, s[i].name, s[i].dept, s[i].year, s[i].addr, s[i].phone, s[i].email);
+    //레코드 파일에서 field의 키값(keyval)을 갖는 레코드를 검색 ... (field, keyval)
+    char headerbuf[FILE_HEADER_SIZE];
+    if (!readFileHeader(fp, headerbuf)) {
+        fprintf(stderr, "search() : Failed to read file header\n");
+        return;
     }
+
+    //레코드 파일의 reserved area에 적혀있는 직전의 삭제 위치 가져오기.
+    unsigned short del_pagenum, del_recordnum;
+    memcpy(&del_pagenum, headerbuf + 2, sizeof(del_pagenum));
+    memcpy(&del_recordnum, headerbuf + 4, sizeof(del_recordnum));
+//
+//    printf("before del_pagenum = %02x\n", del_pagenum);
+//    printf("before del_recordnum = %02x\n", del_recordnum);
+
+    unsigned short total_pages;
+    memcpy(&total_pages, headerbuf, sizeof(total_pages));
+
+    STUDENT s;
+
+    for(int i=0; i<total_pages; i++){
+        char pagebuf[PAGE_SIZE];
+        if (!readPage(fp, pagebuf, i)) {
+            fprintf(stderr, "search() : Failed to read page %d\n", i);
+            continue;
+        }
+
+
+        unsigned short total_records;
+        memcpy(&total_records, pagebuf, sizeof(total_records));
+
+        for(int j=0; j<total_records; j++){
+
+            //일치하는 ID를 레코드 내에서 찾은 경우.. 삭제 작업 진행
+            if(searchByID(fp, keyval, recordbuf, &i, &j)){
+
+                unsigned short record_len = getRecordLength(fp, i, j);
+//                unsigned short record_len = strlen(recordbuf);
+                // recordbuf를 0xff로 초기화
+                memset(recordbuf, 0xff, record_len);
+
+                // recordbuf에 '*'를 설정하고 del_pagenum과 del_recordnum을 복사
+                char del_mark = '*';
+                memcpy(recordbuf, &del_mark, sizeof(del_mark));
+                memcpy(recordbuf + 1, &del_pagenum, sizeof(del_pagenum));
+                memcpy(recordbuf + 3, &del_recordnum, sizeof(del_recordnum));
+
+                // 덮어쓴 recordbuf를 기존 위치에 찾아가서 업데이트
+                unsigned short offset;
+
+                if (j == 0) { // 첫 번째 레코드가 삭제되는 경우
+                    memcpy(pagebuf + PAGE_HEADER_SIZE, recordbuf, record_len);
+                } else {
+                    memcpy(&offset, pagebuf + 8 + 2 * (j - 1), sizeof(offset));
+                    memcpy(pagebuf + PAGE_HEADER_SIZE + offset + 1, recordbuf, record_len);
+                }
+                writePage(fp, pagebuf, i);
+
+                // 헤더를 업데이트
+                unsigned short new_del_pagenum = (unsigned short)i;
+                unsigned short new_del_recordnum = (unsigned short)j;
+//                printf("%02x %02x\n", i, new_del_pagenum);
+//                printf("%02x %02x\n", j, new_del_recordnum);
+                memcpy(headerbuf + 2, &new_del_pagenum, sizeof(new_del_pagenum));
+                memcpy(headerbuf + 4, &new_del_recordnum, sizeof(new_del_recordnum));
+
+//                memcpy(headerbuf + 2, &i, sizeof(total_pages));
+//                memcpy(headerbuf + 4, &j, sizeof(total_records));
+                writeFileHeader(fp, headerbuf);
+
+                return;
+            }
+        }
+    }
+
+
+
+}
+
+int searchByID(FILE *fp, char *keyval, char *recordbuf, int *pagenum, int *recordnum){
+
+    //pagenum의 recordnum으로 가서 검사를 진행.
+    char pagebuf[PAGE_SIZE];
+    readPage(fp, pagebuf, *pagenum);
+
+    char record_buf[MAX_RECORD_SIZE];
+    getRecFromPagebuf(pagebuf, record_buf, *recordnum);
+
+    STUDENT s;
+
+    unpack(record_buf, &s);
+
+    if(strcmp(s.id, keyval) == 0 ){
+        //찾았으면 해당 레코드를 recordbuf에 저장.
+
+        unsigned short record_len = getRecordLength(fp, *pagenum, *recordnum);
+//        unsigned short record_len = strlen(record_buf);
+        memcpy(recordbuf, record_buf, record_len);
+
+        printSearchResult(&s, 1);
+
+        return 1;
+    }
+
+
+    //못찾은 경우에는 0을 return.
+
+    return 0;
+}
+
+
+
+unsigned short getRecordLength(FILE *fp, int pagenum, int recordnum) {
+    char pagebuf[PAGE_SIZE];
+    if (!readPage(fp, pagebuf, pagenum)) {
+        fprintf(stderr, "getRecordLength() : Failed to read page %d\n", pagenum);
+        return 0;
+    }
+
+    unsigned short offset, next_offset;
+
+    if(recordnum == 0){
+        memcpy(&offset, pagebuf+8, sizeof(offset));
+        return offset+1;
+    }
+    else{
+        memcpy(&offset, pagebuf + 8 + (recordnum-1) * 2  , sizeof(offset));
+        memcpy(&next_offset, pagebuf + 8 + (recordnum) * 2 , sizeof(next_offset));
+        return next_offset-offset;
+
+    }
+
 }
 
 
@@ -724,93 +868,6 @@ int ID_duplication_test(FILE *fp, const char *id) {
     return 0; // No duplicate ID found
 }
 
-
-
-void insert(FILE *fp, const STUDENT *s){
-
-    char headerbuf[FILE_HEADER_SIZE];
-    if (!readFileHeader(fp, headerbuf)) {
-        fprintf(stderr, "Failed to read file header\n");
-        return;
-    }
-
-    unsigned short total_pages;
-    memcpy(&total_pages, headerbuf, sizeof(total_pages));
-
-    char pagebuf[PAGE_SIZE];
-    char recordbuf[MAX_RECORD_SIZE];
-    pack(recordbuf, s);
-
-    int last_page_num = 0;
-    unsigned short free_space=PAGE_SIZE-PAGE_HEADER_SIZE;
-    unsigned short total_records = 0;
-
-    //첫 번째 레코드 저장의 경우 읽어올 페이지가 없으니,,,
-    //처음 insert할때, 페이지가 아직 없으므로 readPage() 생략..
-    if(total_pages > 0) {
-        last_page_num = total_pages - 1;
-        if (!readPage(fp, pagebuf, last_page_num)) {  //마지막 페이지의 pagebuf를 가져온다.
-            fprintf(stderr, "insert() : Failed to read last page\n");
-            return;
-        }
-//        memcpy(&free_space, pagebuf+2, sizeof(free_space));
-//        memcpy(&total_records, pagebuf, sizeof(total_records));
-
-        writeRecToPagebuf(pagebuf, recordbuf);
-        memcpy(&total_records, pagebuf, sizeof(total_records));
-
-        if(total_records ==  1){
-            total_pages++;
-            last_page_num = total_pages-1;
-            memcpy(headerbuf, &total_pages, sizeof(total_pages));
-            writeFileHeader(fp, headerbuf);
-        }
-        writePage(fp, pagebuf, last_page_num);
-
-    }
-    else if(total_pages == 0){
-        // 새로운 페이지를 생성하는 경우 페이지를 초기화
-        memset(pagebuf, 0xFF, PAGE_SIZE); // empty pagebuf로 만들어줌
-
-        memcpy(pagebuf, &total_records, sizeof(total_records));
-
-        memcpy(pagebuf+2, &free_space, sizeof(free_space));
-        total_pages = 1;
-        last_page_num = 0;
-
-        writeRecToPagebuf(pagebuf, recordbuf);
-        writePage(fp, pagebuf, last_page_num);
-    }
-
-
-
-//    //해당 페이지에 쓸 수 없는 경우. 다음 페이지에 써야하는 경우..다음 페이지에 쓴다.
-//    if(free_space <  strlen(recordbuf) ){
-//        total_pages++;
-//        last_page_num = total_pages - 1;
-//        memset(pagebuf, 0xFF, PAGE_SIZE); //empty pagebuf로 만들어줌.
-//        total_records = 0;
-//        memcpy(pagebuf, &total_records, sizeof(total_records));
-//        free_space=PAGE_SIZE-PAGE_HEADER_SIZE;
-//        memcpy(pagebuf+2, &free_space, sizeof(free_space));
-//
-//    }
-
-//    writeRecToPagebuf(pagebuf, recordbuf);
-//    writePage(fp, pagebuf, last_page_num);
-
-//    // 헤더 업데이트 : total_record == 1 인경우.. 즉 완전히 처음에 쓰는 경우 혹은 다음 페이지에 쓴 경우..
-//    if (total_records == 1) {
-//
-//        memcpy(headerbuf, &total_pages, sizeof(total_pages));
-//        writeFileHeader(fp, headerbuf);
-//    }
-
-
-
-}
-
-
 FIELD getFieldID(char *fieldname){
     if (strcmp(fieldname, "ID") == 0) return ID;
     if (strcmp(fieldname, "NAME") == 0) return NAME;
@@ -831,8 +888,6 @@ FIELD getFieldID(char *fieldname){
 //    return -1;
 
 }
-
-
 
 int readFileHeader(FILE *fp, char *headerbuf){
     if(fseek(fp, 0, SEEK_SET) != 0) return 0;
@@ -867,109 +922,55 @@ int writeFileHeader(FILE *fp, const char *headerbuf) {
     return 1;
 }
 
-void delete(FILE *fp, char *keyval){
-    char recordbuf[MAX_RECORD_SIZE];
+void pack(char *recordbuf, const STUDENT *s){
 
-    //레코드 파일에서 field의 키값(keyval)을 갖는 레코드를 검색 ... (field, keyval)
+    int n = snprintf(recordbuf,  MAX_RECORD_SIZE, "%s#%s#%s#%s#%s#%s#%s#",
+                     s->id, s->name, s->dept, s->year, s->addr, s->phone, s->email);
+    if(n >= MAX_RECORD_SIZE){
+        fprintf(stderr, "pack() : Record buffer size exceeded. Actual size : %d\n", n);
+    }
+//    printf("pack() this is recorbuf: %s\n", recordbuf);
+}
+
+void unpack(const char *recordbuf, STUDENT *s){
+    sscanf(recordbuf, "%[^#]#%[^#]#%[^#]#%[^#]#%[^#]#%[^#]#%[^#]",
+           s->id, s->name, s->dept, s->year, s->addr, s->phone, s->email);
+}
+
+void make_record_file(FILE *fp, const char *file_name){
+    //처음 레코드 파일 생성 시. 헤더만 생성.
+    fp = fopen(file_name, "w+b");
+    if (fp == NULL) {
+        perror("make_record_file() : Error creating file");
+        exit(1);
+    }
+
+    //headerbuf에 total_pages 적어줌.
     char headerbuf[FILE_HEADER_SIZE];
-    if (!readFileHeader(fp, headerbuf)) {
-        fprintf(stderr, "search() : Failed to read file header\n");
-        return;
+    memset(headerbuf, 0xFF, FILE_HEADER_SIZE);
+
+    unsigned short total_pages = 0; // including header page
+    memcpy(headerbuf, &total_pages, sizeof(total_pages));
+
+    memset(headerbuf+2, -1, 2);
+    memset(headerbuf+4, -1, 2);
+
+    if (!writeFileHeader(fp, headerbuf)) {
+        fprintf(stderr, "make_record_file() : Failed to write file header\n");
+        exit(1);
     }
 
-    //레코드 파일의 reserved area에 적혀있는 직전의 삭제 위치 가져오기.
-    unsigned short pagenum, recordnum;
-    memcpy(&pagenum, headerbuf+2, sizeof(pagenum));
-    memcpy(&recordnum, headerbuf+4, sizeof(recordnum));
-
-    unsigned short total_pages;
-    memcpy(&total_pages, headerbuf, sizeof(total_pages));
-//    printf("search() : Total pages: %d\n", total_pages);
-
-    STUDENT s;
-
-    for(int i=0; i<total_pages; i++){
-        char pagebuf[PAGE_SIZE];
-        if (!readPage(fp, pagebuf, i)) {
-            fprintf(stderr, "search() : Failed to read page %d\n", i);
-            continue;
-        }
-
-
-        unsigned short total_records;
-        memcpy(&total_records, pagebuf, sizeof(total_records));
-//        printf("Page %d: Total records: %d\n", i, total_records);
-
-
-        for(int j=0; j<total_records; j++){
-
-            //일치하는 ID를 레코드 내에서 찾은 경우.. 삭제 작업 진행
-            //일치하는 ID가 있는 recordbuf를 가져왔다..
-            if(searchByID(fp, keyval, recordbuf, &i, &j)){
-
-                //recordbuf 내용을 *PagenumRecordnum으로 덮어쓰기
-                //pagenum은 직전에 삭제되었던 페이지 번호, recordnum은 직전에 삭제되었던 레코드 번호..
-                //레코드 파일 헤더에 저장되어 있던 값을 가져와서 업데이트해주고
-                //레코드 파일의 헤더에 지금 삭제되는 페이지번호, 레코드 번호로 업데이트.
-                memset(recordbuf, 0xFF, strlen(recordbuf));
-
-                memset(recordbuf, '*', 1);
-                memset(recordbuf+1, pagenum, 2);
-                memset(recordbuf+3, recordnum, 2);
-
-                memset(headerbuf+2, i, 2);
-                memset(headerbuf+4, j ,2);
-                writeFileHeader(fp, headerbuf);
-
-                //덮어쓴 recordbuf를 기존 위치에 찾아가서 업데이트
-                //pagebuf에서 offset을 구해서 그곳에 update..
-
-                if(j == 0){ //첫번째 레코드가 삭제되는 경우
-                    memcpy(pagebuf+PAGE_HEADER_SIZE, recordbuf, strlen(recordbuf));
-                }
-                else {
-                    unsigned short offset;
-                    memcpy(&offset, pagebuf + 8 + 2 * (j - 1), sizeof(offset));
-                    memcpy(pagebuf+PAGE_HEADER_SIZE+offset+1, recordbuf, strlen(recordbuf));
-                }
-                writePage(fp, pagebuf, i);
-
-                return;
-
-            }
-        }
-    }
-
-
-
+    fclose(fp);
 }
 
-int searchByID(FILE *fp, char *keyval, char *recordbuf, int *pagenum, int *recordnum){
+void printSearchResult(const STUDENT *s, int n)
+{
+	int i;
 
-    //pagenum의 recordnum으로 가서 검사를 진행.
-    char pagebuf[PAGE_SIZE];
-    readPage(fp, pagebuf, *pagenum);
-
-    char record_buf[MAX_RECORD_SIZE];
-    getRecFromPagebuf(pagebuf, recordbuf, *recordnum);
-
-    STUDENT s;
-
-    unpack(record_buf, &s);
-
-    if(s.id == keyval){
-        //찾았으면 해당 레코드를 recordbuf에 저장.
-        memcpy(recordbuf, record_buf, sizeof(record_buf));
-
-        printSearchResult(&s, 1);
-
-        return 1;
-    }
-
-
-    //못찾은 경우에는 0을 return.
-
-    return 0;
+	printf("#Records = %d\n", n);
+	
+	for(i=0; i<n; i++)
+	{
+		printf("%s#%s#%s#%s#%s#%s#%s\n", s[i].id, s[i].name, s[i].dept, s[i].year, s[i].addr, s[i].phone, s[i].email);
+	}
 }
-
-
