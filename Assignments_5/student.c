@@ -82,6 +82,7 @@ int searchByID(FILE *fp, char *keyval, char *recordbuf, int *pagenum, int *recor
 
 unsigned short getRecordLength(FILE *fp, int pagenum, int recordnum);
 
+void printHex(const char* label, const char* buf, size_t size);
 
 
 int main(int argc, char *argv[])
@@ -757,7 +758,7 @@ void delete(FILE *fp, char *keyval){
     }
 
     //레코드 파일의 reserved area에 적혀있는 직전의 삭제 위치 가져오기.
-    unsigned short del_pagenum, del_recordnum;
+    short del_pagenum, del_recordnum;
     memcpy(&del_pagenum, headerbuf + 2, sizeof(del_pagenum));
     memcpy(&del_recordnum, headerbuf + 4, sizeof(del_recordnum));
 //
@@ -796,6 +797,7 @@ void delete(FILE *fp, char *keyval){
                 memcpy(recordbuf + 1, &del_pagenum, sizeof(del_pagenum));
                 memcpy(recordbuf + 3, &del_recordnum, sizeof(del_recordnum));
 
+//                printHex("Record Buffer After Deletion Marking", recordbuf, 5);
 
                 // 덮어쓴 recordbuf를 기존 위치에 찾아가서 업데이트
                 unsigned short offset;
@@ -807,6 +809,12 @@ void delete(FILE *fp, char *keyval){
                     memcpy(pagebuf + PAGE_HEADER_SIZE + offset + 1, recordbuf, record_len);
                 }
                 writePage(fp, pagebuf, i);
+
+                readPage(fp, pagebuf,i);
+                getRecFromPagebuf(pagebuf, recordbuf, j);
+
+//                // 삭제된 레코드 출력
+//                printHex("Deleted Record", recordbuf, record_len);
 
 
                 // 헤더를 업데이트
@@ -1026,4 +1034,15 @@ void printSearchResult(const STUDENT *s, int n)
     {
         printf("%s#%s#%s#%s#%s#%s#%s\n", s[i].id, s[i].name, s[i].dept, s[i].year, s[i].addr, s[i].phone, s[i].email);
     }
+}
+
+void printHex(const char* label, const char* buf, size_t size) {
+    printf("%s:\n", label);
+    for (size_t i = 0; i < size; i++) {
+        printf("%02X ", (unsigned char)buf[i]);
+        if ((i + 1) % 16 == 0) {
+            printf("\n");
+        }
+    }
+    printf("\n");
 }
