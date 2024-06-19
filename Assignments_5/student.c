@@ -831,6 +831,8 @@ void delete(FILE *fp, char *keyval){
         }
     }
 
+    printf("#Records = 0\n");
+
 }
 
 int searchByID(FILE *fp, char *keyval, char *recordbuf, int *pagenum, int *recordnum){
